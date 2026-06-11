@@ -1,288 +1,115 @@
-# 🤖 AI Assistant with Memory & PDF Chat
+# 🧠 Enterprise RAG Assistant
 
-A full-stack AI chatbot built using **React**, **FastAPI**, **Ollama**, and **Qwen** that supports:
+An enterprise-grade Retrieval-Augmented Generation (RAG) AI assistant designed to function as a company's intelligent digital representative.
 
-- 💬 Multi-turn conversations
-- 🧠 Context-aware memory
-- 📄 PDF document upload
-- 📚 Document-based question answering
-- ⚡ Local LLM inference (no OpenAI API required)
-- 🎨 Modern chat interface
+Unlike traditional chatbots that rely solely on a language model, this system combines semantic search, vector embeddings, conversational memory, and large language models to provide accurate, context-aware responses grounded in company knowledge.
+
+The assistant can answer company-specific questions, maintain conversational context, analyze uploaded documents, generate images from natural language prompts, and act as a general-purpose AI assistant when company knowledge is not required.
 
 ---
 
-## 🚀 Features
+## 🚀 Key Capabilities
 
-### 💬 Conversational Memory
-The chatbot remembers previous messages in the current session by maintaining conversation history and sending contextual prompts to the LLM.
+### 🧠 Retrieval-Augmented Generation (RAG)
 
-Example:
+* Converts company knowledge into vector embeddings
+* Stores semantic representations in ChromaDB
+* Retrieves the most relevant information for every query
+* Reduces hallucinations by grounding responses in real company data
+* Supports dynamic knowledge base updates through ingestion pipelines
 
-```text
-User: My name is Kritarth.
-AI: Nice to meet you, Kritarth!
+### 💬 Intelligent Conversational AI
 
-User: What is my name?
-AI: Your name is Kritarth.
-```
+* Powered by Llama 3.1 running locally through Ollama
+* Maintains conversation history and contextual awareness
+* Handles follow-up questions naturally
+* Supports both company-specific and general-purpose interactions
 
----
+### 🔍 Semantic Search Engine
 
-### 📄 PDF Upload & Analysis
+* Sentence Transformers embeddings
+* Vector similarity search
+* Context retrieval optimization
+* Multi-chunk information aggregation
+* High-accuracy enterprise knowledge retrieval
 
-Upload PDF documents and ask questions about their contents.
+### 📄 Document Intelligence
 
-Example:
+* PDF upload and processing
+* Text extraction and analysis
+* Question answering over uploaded documents
+* Context-aware document conversations
 
-```text
-Upload: interview-faq.pdf
+### 🎨 AI Image Generation
 
-Question:
-What are some good strengths to mention in an interview?
+* Text-to-image generation using FLUX.1 Schnell
+* Hugging Face integration
+* Base64 image delivery to the frontend
+* Real-time image rendering
 
-Answer:
-The document suggests leadership, communication, and problem-solving skills.
-```
+### 🌐 Full-Stack Architecture
 
----
+Frontend:
 
-### 🖥️ Local LLM Integration
+* React
+* Vite
+* Axios
 
-Uses Ollama to run language models locally.
+Backend:
 
-Supported models:
+* FastAPI
+* Python
+* Pydantic
 
-- Qwen 2.5
-- Qwen 2.5 Coder
-- Phi-3 Mini
-- Any Ollama-compatible model
+AI Stack:
 
-No paid API required.
-
----
-
-## 🏗️ Tech Stack
-
-### Frontend
-
-- React
-- Vite
-- Axios
-- CSS
-
-### Backend
-
-- FastAPI
-- Pydantic
-- Requests
-- PyPDF
-
-### AI
-
-- Ollama
-- Qwen 2.5
+* Llama 3.1 (Ollama)
+* Sentence Transformers
+* ChromaDB
+* Hugging Face Inference API
 
 ---
 
-## 📂 Project Structure
+## 🏗️ System Architecture
 
-```text
-INTERNSHIP/
-│
-├── frontend/
-│   ├── src/
-│   │   ├── App.jsx
-│   │   ├── App.css
-│   │   └── main.jsx
-│   │
-│   └── package.json
-│
-├── main.py
-├── .gitignore
-└── README.md
-```
-
----
-
-## ⚙️ Installation
-
-### Clone Repository
-
-```bash
-git clone https://github.com/YOUR_USERNAME/AI-Assistant-PDF-Chatbot.git
-cd AI-Assistant-PDF-Chatbot
-```
+User Query
+↓
+React Frontend
+↓
+FastAPI Backend
+↓
+Embedding Generation
+↓
+ChromaDB Retrieval
+↓
+Relevant Context Extraction
+↓
+Llama 3.1 (Ollama)
+↓
+Grounded Response
 
 ---
 
-## Backend Setup
+## 🎯 Enterprise Use Cases
 
-Create virtual environment:
-
-```bash
-python -m venv venv
-```
-
-Activate:
-
-### Windows
-
-```bash
-venv\Scripts\activate
-```
-
-Install dependencies:
-
-```bash
-pip install fastapi uvicorn requests pypdf python-multipart
-```
-
-Start FastAPI:
-
-```bash
-python -m uvicorn main:app --reload
-```
-
-Backend runs at:
-
-```text
-http://127.0.0.1:8000
-```
+* Customer Support Automation
+* Internal Knowledge Assistants
+* Company FAQ Systems
+* Employee Help Desks
+* Product Information Assistants
+* HR and Policy Assistants
+* Documentation Search Systems
+* AI-Powered Business Support
 
 ---
 
-## Ollama Setup
+## ✨ Highlights
 
-Install Ollama:
-
-https://ollama.com
-
-Pull model:
-
-```bash
-ollama pull qwen2.5:3b
-```
-
-Verify:
-
-```bash
-ollama list
-```
-
----
-
-## Frontend Setup
-
-Navigate to frontend:
-
-```bash
-cd frontend
-```
-
-Install dependencies:
-
-```bash
-npm install
-npm install axios
-```
-
-Start React app:
-
-```bash
-npm run dev
-```
-
-Frontend runs at:
-
-```text
-http://localhost:5173
-```
-
----
-
-## API Endpoints
-
-### Health Check
-
-```http
-GET /
-```
-
-Response:
-
-```json
-{
-  "message": "Qwen AI API Running"
-}
-```
-
----
-
-### Generate Response
-
-```http
-POST /generate
-```
-
-Request:
-
-```json
-{
-  "messages": [
-    {
-      "role": "user",
-      "content": "What is Artificial Intelligence?"
-    }
-  ]
-}
-```
-
----
-
-### Upload PDF
-
-```http
-POST /upload
-```
-
-Upload a PDF document for document-aware responses.
-
----
-
-## Future Improvements
-
-- Vector Database Integration
-- RAG Pipeline
-- Chat Persistence
-- User Authentication
-- Multiple Chat Sessions
-- Streaming Responses
-- Markdown Rendering
-- Syntax Highlighting
-
----
-
-## Screenshots
-
-### Chat Interface
-
-![Chat UI](screenshots/chat.png)
-
-### PDF Upload
-
-![PDF Upload](screenshots/pdf-upload.png)
-
----
-
-## Author
-
-**Kritarth**
-
-Built to explore:
-- FastAPI
-- React
-- Local LLMs
-- Document Question Answering
-- Conversational AI
-
-⭐ Star the repository if you found it useful.
+* Enterprise-grade RAG implementation
+* Local LLM inference for privacy
+* Semantic vector search
+* Conversational memory
+* Document understanding
+* AI image generation
+* Full-stack deployment ready
+* Designed for real-world business environments
