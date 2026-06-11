@@ -1,5 +1,5 @@
 ABOUT THE COMPANY
-TechNova Solutions is a technology consulting and software development company founded in 2018. The company specializes in Artificial Intelligence, Machine Learning, Cloud Computing, Web Development, Mobile Application Development, Data Analytics, and Enterprise Software Solutions. TechNova Solutions serves clients across healthcare, finance, education, retail, logistics, and manufacturing industries.
+ABC  is a technology consulting and software development company founded in 2018. The company specializes in Artificial Intelligence, Machine Learning, Cloud Computing, Web Development, Mobile Application Development, Data Analytics, and Enterprise Software Solutions. ABC  serves clients across healthcare, finance, education, retail, logistics, and manufacturing industries.
 
 
 MISSION
@@ -12,44 +12,44 @@ To become a globally recognized technology partner known for innovation, reliabi
 
 CORE VALUES
 
-1. Innovation
-2. Integrity
-3. Customer Success
-4. Continuous Learning
-5. Collaboration
-6. Excellence
+Innovation
+Integrity
+Customer Success
+Continuous Learning
+Collaboration
+Excellence
 
 
 SERVICES
 
-1. Artificial Intelligence Development
+Artificial Intelligence Development
 We build custom AI solutions including chatbots, virtual assistants, recommendation systems, sentiment analysis tools, document processing systems, and predictive analytics platforms.
 
-2. Machine Learning Solutions
+Machine Learning Solutions
 Our machine learning services include classification systems, forecasting models, fraud detection systems, customer segmentation, and predictive maintenance solutions.
 
-3. Web Development
+Web Development
 We develop responsive and scalable web applications using React, Angular, Vue.js, Node.js, Django, FastAPI, Spring Boot, and .NET technologies.
 
-4. Mobile Application Development
+Mobile Application Development
 We create Android, iOS, and cross-platform applications using Flutter, React Native, Kotlin, and Swift.
 
-5. Cloud Services
+Cloud Services
 Our cloud offerings include AWS architecture design, Azure solutions, Google Cloud deployment, cloud migration, infrastructure automation, and serverless applications.
 
-6. Data Analytics
+Data Analytics
 We provide business intelligence dashboards, data visualization, ETL pipelines, data warehousing, and advanced analytics solutions.
 
-7. Cybersecurity
+Cybersecurity
 Services include security audits, vulnerability assessments, penetration testing, compliance consulting, and security monitoring.
 
-8. DevOps Services
+DevOps Services
 We implement CI/CD pipelines, infrastructure as code, Kubernetes deployments, Docker containerization, and monitoring solutions.
 
 
 PRODUCTS
 
-TechNova Chat
+ABC Chat
 An AI-powered customer support platform capable of handling customer inquiries, document retrieval, and workflow automation.
 
 InsightAI
@@ -83,6 +83,7 @@ We provide route optimization, fleet management, warehouse automation, and shipm
 SOFTWARE TECHNOLOGIES
 
 Frontend Technologies
+
 React
 Next.js
 Angular
@@ -93,6 +94,7 @@ JavaScript
 TypeScript
 
 Backend Technologies
+
 FastAPI
 Node.js
 Express.js
@@ -101,6 +103,7 @@ Spring Boot
 ASP.NET
 
 Databases
+
 PostgreSQL
 MySQL
 MongoDB
@@ -109,6 +112,7 @@ SQLite
 Oracle Database
 
 Cloud Platforms
+
 Amazon Web Services
 Microsoft Azure
 Google Cloud Platform
@@ -130,7 +134,7 @@ FAISS
 COMPANY POLICIES
 
 Working Hours
-Standard working hours are from 9:00 AM to 6:00 PM Monday through Friday.
+Standard working hours are from 9:00 AM to 5:00 PM Monday through Friday.
 
 Remote Work Policy
 Employees may work remotely up to three days per week subject to manager approval.
@@ -156,10 +160,10 @@ Emergency Support
 24/7 support is available for enterprise clients with premium support agreements.
 
 Support Email
-support@technova.com
+support@ABC.com
 
 Sales Email
-sales@technova.com
+sales@ABC.com
 
 
 CAREERS
@@ -177,7 +181,7 @@ Product Manager
 UI/UX Designer
 
 Internship Program:
-TechNova Solutions offers internships in:
+ABC  offers internships in:
 Artificial Intelligence
 Machine Learning
 Web Development
@@ -205,23 +209,23 @@ A: Yes, we provide ongoing maintenance, monitoring, and support for all deployed
 Q: Can you integrate AI into existing applications?
 A: Yes, we specialize in integrating AI capabilities into existing enterprise systems.
 
-Q: How many employees does TechNova Solutions have?
-A: TechNova Solutions has over 250 employees.
+Q: How many employees does ABC  have?
+A: ABC  has over 250 employees.
 
-Q: How many clients does TechNova Solutions have?
-A: TechNova Solutions serves over 150 global clients.
+Q: How many clients does ABC  have?
+A: ABC  serves over 150 global clients.
 
-Q: When was TechNova Solutions founded?
-A: TechNova Solutions was founded in 2018.
+Q: When was ABC  founded?
+A: ABC  was founded in 2018.
 
-Q: Where is TechNova Solutions headquartered?
+Q: Where is ABC  headquartered?
 A: Bangalore, India.
 
 
 CONTACT INFORMATION
 
 Company Name
-TechNova Solutions
+ABC 
 
 Headquarters
 Bangalore, India
@@ -230,13 +234,13 @@ Phone
 +91-80-5555-1234
 
 Email
-contact@technova.com
+contact@ABC.com
 
 Website
-www.technova.com
+www.ABC.com
 
 LinkedIn
-linkedin.com/company/technova
+linkedin.com/company/ABC
 
 Founded
 2018

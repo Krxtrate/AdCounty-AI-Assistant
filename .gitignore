@@ -1,14 +1,33 @@
- 
+# Environment Variables
+.env
+*.env
+
+# Hugging Face / API Tokens
+hftoken.env
+
+# Python
 venv/
 __pycache__/
-node_modules/
-
 *.pyc
 *.pyo
 
+# ChromaDB
+chroma_db/
+
+# Node
+node_modules/
+
+# Build Files
 dist/
 build/
 
+# IDE
 .vscode/
+.idea/
 
+# OS Files
+.DS_Store
+Thumbs.db
+
+# PDFs
 *.pdf

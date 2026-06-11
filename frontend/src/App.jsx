@@ -11,7 +11,7 @@ function App() {
     {
       role: "assistant",
       content:
-        "Hello! Ask me anything 🚀 Upload a PDF and I can answer questions about it.",
+        "Hello! I am the AI assistant for AdCounty Media. Ask me anything 🚀",
     },
   ]);
 
@@ -69,7 +69,7 @@ function App() {
       {
         role: "assistant",
         content:
-          "Hello! Ask me anything 🚀 Upload a PDF and I can answer questions about it.",
+          "Hello! I am the AI assistant for AdCounty Media. Ask me anything 🚀",
       },
     ]);
 
@@ -91,8 +91,9 @@ function App() {
 
     const imageKeywords = [
       "generate image",
+      "generate an image",
       "create image",
-      "draw",
+      "draw a",
       "make an image",
       "create a picture",
       "generate a picture",
@@ -213,8 +214,8 @@ function App() {
 
       <div className="main">
         <div className="header">
-          <h1>🤖 AI Assistant</h1>
-          <p>Powered by Qwen + FastAPI + RAG</p>
+          <h1>🚀 AdCounty Media AI</h1>
+          <p>Enterprise Knowledge Assistant</p>
         </div>
 
         <div className="chat-container">

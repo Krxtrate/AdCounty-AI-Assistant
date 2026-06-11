@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import UploadFile, File
 from pypdf import PdfReader
+from dotenv import load_dotenv
 
 from huggingface_hub import InferenceClient
 from sentence_transformers import SentenceTransformer
@@ -10,10 +11,19 @@ from sentence_transformers import SentenceTransformer
 import chromadb
 import requests
 import base64
+import os
 
 from io import BytesIO
 from typing import List
 
+load_dotenv()
+
+from huggingface_hub import login
+
+hf_token = os.getenv("hftoken")
+
+if hf_token:
+    login(token=hf_token)
 
 # =====================================================
 # APP SETUP
@@ -48,7 +58,7 @@ chroma_client = chromadb.PersistentClient(
     path="./chroma_db"
 )
 
-collection = chroma_client.get_collection(
+collection = chroma_client.get_or_create_collection(
     name="company_knowledge"
 )
 
@@ -58,7 +68,7 @@ collection = chroma_client.get_collection(
 # =====================================================
 
 hf_client = InferenceClient(
-    api_key="hf_YOURTOKENHERE"
+    api_key=os.getenv("hftoken")
 )
 
 
@@ -101,75 +111,190 @@ def generate(chat: ChatRequest):
 
     conversation = ""
 
-    latest_question = chat.messages[-1].content
+    if not chat.messages:
+        return {
+            "output": "No message received."
+        }
+
+    latest_question = ""
+
+    for msg in chat.messages[-3:]:
+        if msg.role == "user":
+            latest_question += msg.content + " "
+
+    latest_question_lower = latest_question.lower()
+
+    company_keywords = [
+        "adcounty",
+        "company",
+        "service",
+        "services",
+        "product",
+        "products",
+        "support",
+        "employee",
+        "employees",
+        "client",
+        "clients",
+        "internship",
+        "internships",
+        "technology",
+        "technologies",
+        "contact",
+        "office",
+        "headquarters",
+        "policy",
+        "policies"
+    ]
+
+    is_company_question = any(
+        keyword in latest_question_lower
+        for keyword in company_keywords
+    )
 
     # -----------------------------------
     # VECTOR SEARCH
     # -----------------------------------
 
-    query_embedding = embedder.encode(
-        latest_question
-    ).tolist()
+    company_context = ""
 
-    results = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=5
-    )
+    if is_company_question:
 
-    print(results["distances"])
+        query_embedding = embedder.encode(
+            latest_question
+        ).tolist()
+
+        results = collection.query(
+            query_embeddings=[query_embedding],
+            n_results=5
+        )
+
+        print("\nDISTANCES:")
+        print(results["distances"])
+
+        retrieved_docs = results.get(
+            "documents",
+            [[]]
+        )[0]
+
+        company_context = "\n\n".join(
+            retrieved_docs
+        )[:6000]
+
+        if not company_context.strip():
+            company_context = "No relevant company information found."
+
+    else:
+
+        print("\nGENERAL CHAT DETECTED")
 
     print("\n==============================")
     print("USER QUESTION:")
     print(latest_question)
 
-    print("\nRETRIEVED DOCUMENTS:")
+    if is_company_question:
 
-    for doc in results["documents"][0]:
-        print("-------------------")
-        print(doc)
+        print("\nRETRIEVED DOCUMENTS:")
+
+        for doc in results["documents"][0]:
+            print("-------------------")
+            print(doc[:300])
 
     print("==============================\n")
-
-    company_context = "\n\n".join(
-        results["documents"][0]
-    )
 
     # -----------------------------------
     # SYSTEM PROMPT
     # -----------------------------------
 
     conversation += f"""
-SYSTEM INSTRUCTION:
 
-You are the official AI assistant of TechNova Solutions.
+    SYSTEM INSTRUCTION:
 
-You have direct access to company knowledge.
+    You are the official AI assistant of AdCounty Media.
 
-COMPANY KNOWLEDGE:
+    COMPANY KNOWLEDGE:
 
-{company_context}
+    {company_context}
 
-IMPORTANT RULES:
+    RULES:
 
-1. NEVER say:
-   - I don't have access
-   - Upload a PDF
-   - I cannot access company information
-   - I need more information
+    1. If the user asks about AdCounty Media,
+    use COMPANY KNOWLEDGE as the primary source.
 
-2. Use the COMPANY KNOWLEDGE section whenever relevant.
+    2. If the answer is present in COMPANY KNOWLEDGE,
+    answer using that information.
 
-3. If the answer exists in COMPANY KNOWLEDGE,
-   answer confidently.
+    3. If the user asks about AdCounty Media and the
+    information is not available in COMPANY KNOWLEDGE,
+    respond:
 
-4. If the information is not present,
-   respond:
+    "Sorry, I couldn't find that information."
 
-   "I couldn't find that information in the company knowledge base."
+    4. If the user asks a general question unrelated
+    to AdCounty Media, answer normally as a helpful,
+    intelligent AI assistant.
 
-5. Answer professionally and concisely.
+    5. You may:
+    - Explain concepts
+    - Answer technical questions
+    - Help with coding
+    - Tell jokes
+    - Engage in conversation
+    - Assist with learning
 
-"""
+    6. Never invent company-specific information.
+
+    7. Answer completely and do not omit items from lists.
+
+    8. If company information is available, answer naturally.
+
+        Never mention:
+        - COMPANY KNOWLEDGE
+        - knowledge base
+        - retrieved documents
+        - context
+        - database
+
+        Present company information as normal factual information.
+
+        If information is unavailable, respond only:
+
+        "Sorry, I couldn't find that information."
+
+        Do not explain why.
+        Do not mention missing context.
+
+    9. Never list information that is unavailable.
+        
+        If a field is unknown, omit it entirely.
+
+        Do not say:
+        - Not specified
+        - Not available
+        - Not found
+        - Missing
+
+        Simply exclude unavailable information from the answer.
+
+    10. When answering broad questions such as:
+
+        - Complete overview
+        - Tell me about the company
+        - Summarize the company
+
+        Provide a concise summary rather than repeating every detail.
+
+        Prioritize:
+
+        1. Company description
+        2. Services
+        3. Products
+        4. Technologies
+        5. Policies
+        6. Contact information
+
+        Keep summaries under 300 words.
+    """
 
     # -----------------------------------
     # OPTIONAL PDF CONTEXT
@@ -179,14 +304,14 @@ IMPORTANT RULES:
 
         conversation += f"""
 
-UPLOADED DOCUMENT:
+        UPLOADED DOCUMENT:
 
-{document_text[:4000]}
+        {document_text[:2500]}
 
-If the user's question refers to the uploaded document,
-use this information.
+        If the user's question refers to the uploaded document,
+        use this information.
 
-"""
+        """
 
     # -----------------------------------
     # CHAT MEMORY
@@ -210,7 +335,7 @@ use this information.
 
     conversation += "<|assistant|>\n"
 
-    print("\n===== CONTEXT SENT TO QWEN =====")
+    print("\n===== CONTEXT SENT TO LLAMA =====")
     print(company_context[:2000])
     print("================================\n")
 
@@ -218,19 +343,33 @@ use this information.
     # OLLAMA
     # -----------------------------------
 
-    response = requests.post(
-        "http://localhost:11434/api/generate",
-        json={
-            "model": "qwen2.5:3b",
-            "prompt": conversation,
-            "stream": False,
-            "options": {
-                "num_predict": 250,
-                "temperature": 0.3
-            }
+    payload = {
+        "model": "llama3.1:8b",
+        "prompt": conversation,
+        "stream": False,
+        "options": {
+            "num_predict": 350,
+            "temperature": 0.2
         }
-    )
+    }
 
+    try:
+        response = requests.post(
+            "http://localhost:11434/api/generate",
+            json=payload,
+            timeout=120
+        )
+
+        if response.status_code != 200:
+            return {
+                "output": "The AI service is currently unavailable."
+            }
+
+    except requests.exceptions.RequestException:
+        return {
+            "output": "The AI service is currently unavailable."
+        }
+        
     result = response.json()
 
     return {
@@ -278,10 +417,17 @@ async def upload_file(file: UploadFile = File(...)):
 @app.post("/generate-image")
 def generate_image(data: ImageRequest):
 
-    image = hf_client.text_to_image(
-        data.prompt,
-        model="black-forest-labs/FLUX.1-schnell"
-    )
+    try:
+        image = hf_client.text_to_image(
+            data.prompt,
+            model="black-forest-labs/FLUX.1-schnell"
+        )
+
+    except Exception:
+        return {
+            "image": None,
+            "error": "Image generation failed."
+        }
 
     buffer = BytesIO()
 
