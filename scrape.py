@@ -6,7 +6,7 @@ from urllib.parse import urljoin, urlparse
 MAX_PAGES = 50
 
 
-BASE_URL = "https://www.adcountymedia.com"
+BASE_URL = "YOUR_URL_HERE""
 
 visited = set()
 to_visit = {BASE_URL}
