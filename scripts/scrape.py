@@ -13,7 +13,6 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 MAX_PAGES = 200
-
 BASE_URL = "https://www.adcountymedia.com"
 
 SKIP_PAGES = [
@@ -30,7 +29,6 @@ ALLOWED_PATHS = [
     "/careers",
     "/contact",
 ]
-
 
 SCRAPE_TARGETS = [
     {
@@ -85,117 +83,129 @@ with sync_playwright() as p:
             print(f"Scraping: {url}")
 
             try:
+                page.goto(url, wait_until="domcontentloaded", timeout=60000)
 
-                page.goto(
-                    url,
-                    wait_until="domcontentloaded",
-                    timeout=60000
-                )
-
+                # Scroll to trigger lazy-loaded content
                 page.evaluate("""
-                if (document.body) {
-                    window.scrollTo(0, document.body.scrollHeight);
-                }
+                    if (document.body) {
+                        window.scrollTo(0, document.body.scrollHeight);
+                    }
                 """)
-
                 for _ in range(5):
                     page.evaluate("window.scrollBy(0, 2000)")
                     page.wait_for_timeout(1000)
-
                 page.wait_for_timeout(2000)
 
+                all_accordion_text = ""
+                all_tab_text = ""
+
                 if SCRAPE_MODE == "adcounty" and "/products/" in url:
 
-                    buttons = page.locator("[aria-expanded]")
+                    # ── Accordions ───────────────────────────────────────────
+                    # Query all triggers (open + closed) upfront by index
+                    # to avoid stale DOM references from toggling
+                    triggers = page.locator("[data-state='closed'], [data-state='open']")
+                    total = triggers.count()
+                    print(f"Found {total} accordion triggers")
 
-                    count = buttons.count()
+                    seen_sections = set()
 
-                    print(f"Found {count} accordions")
-
-                    for i in range(count):
+                    for i in range(total):
                         try:
-                            button = buttons.nth(i)
+                            trigger = triggers.nth(i)
 
-                            expanded = button.get_attribute("aria-expanded")
+                            if not trigger.is_visible():
+                                continue
 
-                            if expanded == "false":
-                                button.click(force=True)
+                            section_name = trigger.inner_text().strip()
 
-                            page.wait_for_timeout(1000)
+                            # Skip content panels masquerading as triggers
+                            if len(section_name) > 100:
+                                continue
+
+                            # Skip duplicates
+                            if section_name in seen_sections:
+                                continue
+                            seen_sections.add(section_name)
+
+                            trigger.scroll_into_view_if_needed()
+                            trigger.click(force=True)
+                            page.wait_for_timeout(1500)
+
+                            try:
+                                panel = page.locator("[data-state='open']").last
+                                panel_text = panel.inner_text().strip()
+                                if panel_text and panel_text != section_name:
+                                    all_accordion_text += f"\n\n## {section_name}\n{panel_text}"
+                                    print(f"  Accordion '{section_name}' → {len(panel_text)} chars")
+                                else:
+                                    print(f"  Accordion '{section_name}' → empty")
+                            except Exception as e:
+                                print(f"  Panel grab [{i}] failed: {e}")
 
                         except Exception as e:
-                            print(f"Accordion {i} failed: {e}")
+                            print(f"  Accordion [{i}] failed: {e}")
 
-                        page.wait_for_timeout(1000)
+                    page.wait_for_timeout(1000)
 
-                page.wait_for_timeout(3000)
-
-                tab_count = 0
-
-                if SCRAPE_MODE == "adcounty" and "/products/" in url:
-
+                    # ── Tabs — role='tab' only ───────────────────────────────────
                     tab_elements = page.locator("[role='tab']")
                     tab_count = tab_elements.count()
                     print(f"Found {tab_count} tabs")
 
-                all_tab_text = ""
-
-                if tab_count > 0:
+                    seen_tabs = set()
 
                     for i in range(tab_count):
-
                         try:
+                            tab = page.locator("[role='tab']").nth(i)
+                            tab_name = tab.inner_text().strip()
 
-                            tab = tab_elements.nth(i)
-                            tab_name = tab.inner_text()
+                            if not tab_name or len(tab_name) > 100:
+                                continue
+                            if tab_name in seen_tabs:
+                                continue
+                            seen_tabs.add(tab_name)
+
                             print(f"Opening tab: {tab_name}")
-
                             tab.click(force=True)
-                            page.wait_for_timeout(3000)
+                            page.wait_for_timeout(2000)
 
                             panel = page.locator("[role='tabpanel']")
-                            panel.wait_for()
-                            content = panel.inner_text()
-                            all_tab_text += content
+                            panel.wait_for(timeout=5000)
+                            content = panel.inner_text().strip()
+
+                            if content:
+                                all_tab_text += f"\n\n## {tab_name}\n{content}"
+                                print(f"  Tab '{tab_name}' → {len(content)} chars")
 
                         except Exception as e:
-                            print(f"Failed tab {i}: {e}")
+                            print(f"  Tab [{i}] failed: {e}")
 
+                # ── Base page HTML extraction ────────────────────────────────
                 html = page.content()
                 soup = BeautifulSoup(html, "html.parser")
 
+                # Collect internal links
                 if SCRAPE_MODE == "adcounty":
-
                     for link in soup.find_all("a", href=True):
-
                         href = link["href"]
-
                         if href.lower().endswith(".pdf"):
                             continue
-
                         full_url = urljoin(BASE_URL, href)
                         parsed = urlparse(full_url)
-
                         if parsed.netloc == urlparse(BASE_URL).netloc:
-
                             clean_url = (
-                                parsed.scheme
-                                + "://"
-                                + parsed.netloc
+                                parsed.scheme + "://" + parsed.netloc
                                 + parsed.path.rstrip("/")
                             )
-
                             if not any(path in clean_url for path in ALLOWED_PATHS):
                                 continue
-
                             if clean_url not in visited:
                                 to_visit.add(clean_url)
 
-                for tag in soup.find_all(
-                    ["form", "input", "button", "select", "textarea"]
-                ):
+                # Strip UI chrome
+                for tag in soup.find_all(["form", "input", "button", "select", "textarea"]):
                     tag.decompose()
-
                 for tag in soup(["script", "style"]):
                     tag.decompose()
 
@@ -213,48 +223,22 @@ with sync_playwright() as p:
                 else:
                     page_text = main_content.get_text(separator="\n", strip=True)
 
-                text = page_text
-
+                # ── Merge all sections — accordion/tab content FIRST ────────────────
+                # Put structured content before base page text so chunking
+                # captures it in the first chunks rather than burying it after noise
+                
+                text = ""
+                if all_accordion_text.strip():
+                    text += all_accordion_text.strip() + "\n\n"
                 if all_tab_text.strip():
-                    text += "\n\n" + all_tab_text
+                    text += all_tab_text.strip() + "\n\n"
+                text += page_text.strip()
 
-                print(f"Extracted {len(text)} characters")
+                text = text.replace("Your browser does not support the video tag.", "")
 
-                if "bidcounty" in url.lower():
-                    print(text[:3000])
-                if "genwin" in url.lower():
-                    print(text[:3000])
-                if "isearchads" in url.lower():
-                    print(text[:3000])
-                if "gam360" in url.lower():
-                    print(text[:3000])
-                if "opsis" in url.lower():
-                    print(text[:3000])
-                if "seetv" in url.lower():
-                    print(text[:3000])
+                print(f"Extracted {len(text)} chars total")
 
-                path = urlparse(url).path
-
-                if SCRAPE_MODE == "gitbook":
-
-                    filename = (
-                        path.strip("/")
-                        .replace("/", "_")
-                        .replace("docs_", "")
-                        + ".txt"
-                    )
-
-                else:
-
-                    if path == "" or path == "/":
-                        filename = "home.txt"
-                    else:
-                        filename = (
-                            path.strip("/").replace("/", "_") + ".txt"
-                        )
-
-                print(f"Extracted {len(text)} characters")
-
+                # Skip binary/asset URLs
                 if any(
                     x in url.lower()
                     for x in [".jpg", ".jpeg", ".png", ".svg", ".pdf", ".zip", "#"]
@@ -262,59 +246,33 @@ with sync_playwright() as p:
                     continue
 
                 page_title = soup.title.string.strip() if soup.title else url
+                source_type = "website" if SCRAPE_MODE == "adcounty" else "gitbook"
 
+                # ── Persist to PostgreSQL ────────────────────────────────────
                 db = SessionLocal()
-
-                source_type = (
-                    "website"
-                    if SCRAPE_MODE == "adcounty"
-                    else "gitbook"
-                )
-
-                try :
-                    existing = (
-                        db.query(Document)
-                        .filter(Document.url == url)
-                        .first()
-                    )
-
+                try:
+                    existing = db.query(Document).filter(Document.url == url).first()
                     if existing:
-
                         existing.title = page_title
                         existing.content = text
                         existing.source = source_type
-
                         db.commit()
-
                     else:
-
                         doc = Document(
                             source=source_type,
                             title=page_title,
                             url=url,
-                            content=text
+                            content=text,
                         )
-
                         db.add(doc)
                         db.commit()
-
                 finally:
                     db.close()
 
-                text = text.replace(
-                    "Your browser does not support the video tag.",
-                    ""
-                )
-
-                print(
-                    f"Saved document → "
-                    f"{page_title} "
-                    f"({source_type})"
-                )
+                print(f"Saved → {page_title} ({source_type})")
 
             except Exception as e:
-                print(f"Failed: {url}")
-                print(e)
+                print(f"Failed: {url} — {e}")
 
         print(f"\nFinished {SCRAPE_MODE.upper()} — {len(visited)} pages scraped.")
 

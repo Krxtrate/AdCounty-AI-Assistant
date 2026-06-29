@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "adcounty-chatbot": {
+      "command": "python",
+      "args": ["C:/Internship/chatbot/app.py", "--mcp"],
+      "env": {
+        "PYTHONPATH": "C:/INTERNSHIP"
+      }
+    }
+  }
+}

@@ -41,6 +41,13 @@ SMALLTALK_DIR = str(DATA_DIR / "smalltalk")
 CHROMA_COLLECTION_NAME = "company_knowledge"
 
 # ─────────────────────────────────────────────────────────────
+# MCP TRANSPORT SETTING
+# ─────────────────────────────────────────────────────────────
+
+MCP_TRANSPORT = "stdio"   
+MCP_SERVER_NAME = "AdCounty Chatbot"
+
+# ─────────────────────────────────────────────────────────────
 # ─────────────────────────────────────────────────────────────
 # CONTEXT CHAR BUDGETS
 # RTX 3050 6 GB: model weights ~4.7 GB (Q4), leaving ~1.3 GB for KV cache.

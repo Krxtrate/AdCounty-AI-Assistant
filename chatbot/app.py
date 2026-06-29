@@ -19,6 +19,7 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
+import sys
 import httpx
 import pytz
 from fastapi import FastAPI
@@ -295,3 +296,15 @@ async def _generate(chat: ChatRequest):
         return {"output": "I don't have that information right now."}
 
     return {"output": output}
+
+# ─────────────────────────────────────────────────────────────
+# MCP
+# ─────────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    if "--mcp" in sys.argv:
+        from chatbot.services.mcp_server import mcp
+        mcp.run()
+    else:
+        import uvicorn
+        uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
