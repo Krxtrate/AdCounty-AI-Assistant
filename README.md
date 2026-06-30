@@ -1,6 +1,6 @@
 # 🤖 AdCounty AI Assistant
 
-> An enterprise-grade AI Assistant powered by Retrieval-Augmented Generation (RAG), designed to deliver fast, accurate, and context-aware responses from company knowledge. Runs on either a hosted LLM via the Hugging Face Inference API (no GPU or download required) a fully local model via Ollama.
+An enterprise-grade AI Assistant powered by Retrieval-Augmented Generation (RAG), designed to deliver fast, accurate, and context-aware responses from company knowledge. Tries the Hugging Face Inference API first for fast, GPU-free responses, and automatically falls back to a local Ollama model if the free tier is rate-limited — with zero manual intervention.
 
 Built during my Software Development Internship at **AdCounty Media**.
 
@@ -20,7 +20,9 @@ The assistant supports product information, leadership queries, comparisons, com
 
 - 🧠 Retrieval-Augmented Generation (RAG)
 - 🔍 Semantic Search with ChromaDB
-- 🤖 LLM Inference via Hugging Face Inference API (default) or local Ollama (Llama 3.1)
+- 🤖 Dual-backend LLM inference — Hugging Face Inference API (primary, ~3-5s responses) with automatic failover to local Ollama (Llama 3.1) if the free tier is rate-limited
+- 🔄 Self-healing — automatically retries the Hugging Face API every 24 hours to recover from fallback
+- 🟡 Frontend notice banner when running on the local fallback, so users know to expect slower responses
 - 🎯 Intelligent Intent Detection
 - 💬 Multi-turn Conversation Support
 - 🌐 Automated Website Scraping (accordion, tab, and dropdown-aware)
@@ -40,7 +42,7 @@ The assistant supports product information, leadership queries, comparisons, com
 - Python
 - FastAPI
 - ChromaDB
-- Hugging Face Inference API / Ollama
+- Hugging Face Inference API + local Ollama (automatic failover)
 - Sentence Transformers
 - Transformers
 - Playwright
@@ -84,11 +86,32 @@ The assistant supports product information, leadership queries, comparisons, com
           Prompt Construction
                    │
                    ▼
-   Hugging Face Inference API  (or local Ollama)
+       ┌───────────────────────┐
+       │   LLM Failover Router │
+       └───────────────────────┘
+                   │
+        ┌──────────┴──────────┐
+        ▼                     ▼
+  Hugging Face API      Local Ollama
+  (tried first)      (automatic fallback
+                       if HF fails/rate-limited)
                    │
                    ▼
              AI Response
+        (+ notice if on fallback)
 ```
+
+---
+
+## 🔁 How the Failover Works
+
+1. Every request tries the **Hugging Face Inference API** first — fast (~3-5s) and requires no GPU.
+2. If HF fails (rate limit, timeout, server error), the request automatically retries against **local Ollama** running on the server.
+3. The response includes a `notice` field when served by the fallback, which the frontend surfaces as a banner: *"Running on local inference — the free Hugging Face tier limit was reached, so responses may be slower than usual."*
+4. The backend automatically retries HF every 24 hours in case the rate limit window has reset — no restart or manual switch needed.
+5. `GET /health` reports which backend is currently active (`huggingface` or `ollama`) at any time.
+
+This means the assistant stays available and fast under normal conditions, and gracefully degrades to local inference during high traffic — without anyone needing to intervene.
 
 ---
 
@@ -116,12 +139,13 @@ Enterprise-RAG-Assistant
 │   ├── config.py
 │   ├── models.py
 │   ├── core/
+│   ├── prompts/
 │   ├── services/
 │   │   ├── chroma.py
-│   │   ├── hf.py          # Hugging Face Inference API client (Integrated currently)
-│   │   ├── ollama.py       # Optional local inference client
+│   │   ├── llm.py          # Failover router — app.py imports ONLY from here
+│   │   ├── hf.py            # Hugging Face Inference API client
+│   │   ├── ollama.py        # Local Ollama client (fallback)
 │   │   └── mcp_server.py
-│   ├── prompts/
 │   └── database/
 │
 ├── frontend/
@@ -180,20 +204,29 @@ cp .env.example .env
 # .env
 DATABASE_URL=postgresql://user:password@localhost:5432/adcounty_chatbot
 
-# Choose ONE inference backend:
-
-# Option A — Hugging Face Inference API (recommended, no GPU/download needed)
+# Hugging Face Inference API — tried first on every request.
+# No GPU or model download required.
+# Get a token at https://huggingface.co/settings/tokens
+# Request access to the model at https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct
 HF_API_TOKEN=your_huggingface_token_here
 HF_MODEL=meta-llama/Llama-3.1-8B-Instruct
 
-# Option B — Local Ollama (requires Ollama installed + model downloaded)
+# Local Ollama — automatic fallback if HF fails or hits rate limits.
+# Must be installed and running for the fallback to actually work.
 OLLAMA_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.1:8b
 ```
 
-> **Getting a Hugging Face token:** create a free account at [huggingface.co](https://huggingface.co), generate a token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens), and request access to the Llama 3.1 model page (approval is usually instant).
+> **Note:** Both backends are configured simultaneously — there's no toggle to set. The app tries HF first on every request and only falls back to Ollama automatically if HF is unavailable. If you don't have Ollama installed, the app still runs fine as long as HF is reachable; the fallback simply won't have anywhere to go if HF ever fails.
 
-### 5. Build the knowledge base
+### 5. (Optional but recommended) Install and start Ollama for fallback coverage
+
+```bash
+ollama serve
+ollama pull llama3.1:8b
+```
+
+### 6. Build the knowledge base
 
 ```bash
 python -m scripts.scrape      # scrape source content into PostgreSQL
@@ -201,26 +234,15 @@ python -m scripts.ingest      # chunk content into the chunks table
 python -m scripts.embedder    # embed chunks into ChromaDB
 ```
 
-### 6A. Run with Hugging Face Inference API (default, no extra setup)
+### 7. Run the backend
 
 ```bash
 uvicorn chatbot.app:app --reload
 ```
 
-### 6B. Run with local Ollama instead
+Check `GET http://localhost:8000/health` at any time to see which backend is currently serving requests.
 
-```bash
-ollama serve
-ollama pull llama3.1:8b
-```
-
-Then update `chatbot/services/__init__.py` to import from `ollama.py` instead of `hf.py`, and run:
-
-```bash
-uvicorn chatbot.app:app --reload
-```
-
-### 7. Frontend
+### 8. Frontend (in a separate terminal)
 
 ```bash
 cd frontend
@@ -233,8 +255,9 @@ npm run dev
 ## 🎯 Key Highlights
 
 - ✅ Enterprise-ready RAG architecture
-- ✅ Runs with zero local GPU requirement via Hugging Face Inference API
-- ✅ Optional fully local inference via Ollama for offline/private use
+- ✅ Fast hosted inference via Hugging Face Inference API, with zero local GPU requirement
+- ✅ Automatic, self-healing failover to local Ollama — no manual switching, no downtime
+- ✅ Frontend transparency — users see a banner when running on the slower local fallback
 - ✅ Fast semantic document retrieval
 - ✅ Context-aware responses
 - ✅ Conversation memory support

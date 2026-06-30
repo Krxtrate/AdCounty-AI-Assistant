@@ -2,7 +2,6 @@
 services/hf.py
 ──────────────
 All communication with the Hugging Face Inference API lives here.
-Drop-in replacement for services/ollama.py.
 
 No local model needed — just a HF_API_TOKEN in the environment.
 """
@@ -34,7 +33,9 @@ async def call_ollama(payload: dict, timeout: float = 120.0) -> dict:
     Translate an Ollama-style payload to HF Inference API format and call it.
     Returns an Ollama-compatible response dict so app.py needs zero changes.
     """
-    # Convert Ollama messages format → HF messages format (identical, both OpenAI-style)
+    if not HF_API_TOKEN:
+        raise RuntimeError("HF_API_TOKEN is not set")
+
     messages = payload.get("messages", [])
 
     hf_payload = {
@@ -67,7 +68,6 @@ async def call_ollama(payload: dict, timeout: float = 120.0) -> dict:
 
             data = resp.json()
 
-            # Translate HF response → Ollama-compatible format so app.py is untouched
             content = data["choices"][0]["message"]["content"]
             return {
                 "message": {"content": content},
@@ -94,7 +94,7 @@ def compute_ctx(ollama_messages: List[dict], desired_predict: int) -> tuple[int,
         f"CTX SIZING — prompt_chars: {prompt_chars}, "
         f"est_tokens: {prompt_tok_est}, desired_predict: {desired_predict}"
     )
-    return 8192, desired_predict  # HF manages context, we just pass token limit
+    return 8192, desired_predict
 
 
 def log_timing_summary(
@@ -118,3 +118,7 @@ def log_timing_summary(
         f"  TOTAL            : {total:.3f}s\n"
         f"────────────────────────────────────────────────\n"
     )
+
+
+def get_model_name() -> str:
+    return HF_MODEL

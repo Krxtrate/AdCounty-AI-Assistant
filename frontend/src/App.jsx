@@ -25,9 +25,19 @@ function Message({ msg }) {
   );
 }
 
+function BackendNotice({ text }) {
+  return (
+    <div className="backend-notice">
+      <span className="backend-notice-dot" />
+      {text}
+    </div>
+  );
+}
+
 function App() {
 
   const [backendOnline, setBackendOnline] = useState(false);
+  const [backendNotice, setBackendNotice] = useState(null);
 
   useEffect(() => {
     const checkBackend = async () => {
@@ -102,6 +112,12 @@ function App() {
       );
 
       const output = response?.data?.output;
+      const notice = response?.data?.notice;
+
+      // Show (or clear) the fallback notice based on this response.
+      // Once shown, it persists until a response comes back without one
+      // (i.e. HF Inference API recovers).
+      setBackendNotice(notice || null);
 
       if (!output) {
         // Backend returned 200 but no output field — show a user-visible error
@@ -214,6 +230,8 @@ function App() {
             {backendOnline ? "Online" : "Offline"}
           </div>
         </header>
+
+        {backendNotice && <BackendNotice text={backendNotice} />}
 
         {/* CHAT */}
         <div className="chat-container">

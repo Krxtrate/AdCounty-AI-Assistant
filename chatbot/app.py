@@ -7,7 +7,7 @@ This file contains almost no logic of its own.  Its only jobs are:
 
   1. Bootstrap the application (middleware, thread pool, startup tasks).
   2. Receive HTTP requests.
-  3. Delegate to the appropriate module (intent → routing → prompts → Ollama).
+  3. Delegate to the appropriate module (intent → routing → prompts → LLM).
   4. Return the response.
 
 All business logic lives in the core/ and services/ modules.
@@ -26,7 +26,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # ── Internal modules ──────────────────────────────────────────────────────────
-from chatbot.config import THREAD_POOL_MAX_WORKERS, HF_API_TOKEN, HF_API_URL, HF_MODEL
+from chatbot.config import THREAD_POOL_MAX_WORKERS, OLLAMA_URL
 from chatbot.models import ChatRequest
 
 from chatbot.core.intent import detect_intent
@@ -41,20 +41,13 @@ from chatbot.core.router import (
 from chatbot.core.smalltalk import match_smalltalk, pick_smalltalk_reply
 from chatbot.core.utils import clean_llm_output, render_smalltalk
 
-'''
-from chatbot.services.ollama import (
+from chatbot.services.llm import (
     call_ollama,
     compute_ctx,
     log_timing_summary,
     prewarm_ollama,
-)
-'''
-
-from chatbot.services.hf import (
-    call_ollama,
-    compute_ctx,
-    log_timing_summary,
-    prewarm_ollama,
+    get_model_name,
+    is_using_fallback,
 )
 
 # services/chroma is imported by core/retrieval at module load, which triggers
@@ -83,9 +76,8 @@ _executor = ThreadPoolExecutor(max_workers=THREAD_POOL_MAX_WORKERS)
 # STARTUP  (runs once when the process starts)
 # ─────────────────────────────────────────────────────────────
 
-# Pre-warm the Ollama model so the first real request isn't penalised
-# by cold-start overhead.  Non-fatal — the app still starts if Ollama
-# is not yet available.
+# Pre-warm both backends so neither pays a cold-start penalty on first use.
+# Non-fatal — the app still starts even if one or both are unavailable.
 prewarm_ollama()
 
 # ─────────────────────────────────────────────────────────────
@@ -94,11 +86,26 @@ prewarm_ollama()
 
 @app.get("/health")
 def health():
-    try:
-        httpx.get("http://localhost:11434/api/tags", timeout=2)
-        return {"fastapi": True, "ollama": True}
-    except Exception:
-        return {"fastapi": True, "ollama": False}
+    """
+    Reports FastAPI status plus which LLM backend is currently active.
+    is_using_fallback() reflects the live state of the automatic
+    HF → Ollama failover in services/llm.py.
+    """
+    on_fallback = is_using_fallback()
+    ollama_reachable = None
+
+    if on_fallback:
+        try:
+            httpx.get(f"{OLLAMA_URL}/api/tags", timeout=2)
+            ollama_reachable = True
+        except Exception:
+            ollama_reachable = False
+
+    return {
+        "fastapi": True,
+        "backend": "ollama" if on_fallback else "huggingface",
+        "ollama_reachable": ollama_reachable,
+    }
 
 
 @app.get("/")
@@ -243,9 +250,9 @@ async def _generate(chat: ChatRequest):
     desired_predict         = compute_desired_predict(intent)
     num_ctx, num_predict    = compute_ctx(ollama_messages, desired_predict)
 
-    # ── 10. Ollama payload ───────────────────────────────────────────────────
+    # ── 10. LLM payload ──────────────────────────────────────────────────────
     payload = {
-        "model":      HF_MODEL,
+        "model":      get_model_name(),
         "messages":   ollama_messages,
         "stream":     False,
         "keep_alive": "30m",
@@ -260,18 +267,21 @@ async def _generate(chat: ChatRequest):
         },
     }
 
-    # ── 11. Call Ollama ──────────────────────────────────────────────────────
+    # ── 11. Call LLM (HF first, auto-fallback to Ollama on failure) ──────────
     t_ollama_start = time.perf_counter()
     try:
         result = await call_ollama(payload)
-    except (httpx.TimeoutException, httpx.RequestError, RuntimeError):
+    except RuntimeError as e:
+        print(f"BOTH BACKENDS FAILED: {e}")
+        return {"output": "The AI service is currently unavailable. Please try again in a moment."}
+    except (httpx.TimeoutException, httpx.RequestError):
         return {"output": "The AI service is currently unavailable. Please try again in a moment."}
     except Exception as e:
-        print(f"UNEXPECTED OLLAMA ERROR: {e}")
+        print(f"UNEXPECTED ERROR: {e}")
         traceback.print_exc()
         return {"output": "Sorry, something went wrong. Please try again."}
     ollama_time = time.perf_counter() - t_ollama_start
-    print(f"OLLAMA TIME: {ollama_time:.3f}s")
+    print(f"LLM TIME: {ollama_time:.3f}s")
 
     # ── 12. Parse response ───────────────────────────────────────────────────
     t_parse_start = time.perf_counter()
@@ -304,7 +314,17 @@ async def _generate(chat: ChatRequest):
     if not output:
         return {"output": "I don't have that information right now."}
 
-    return {"output": output}
+    response = {"output": output}
+
+    # ── 14. Surface a frontend notice if this response came from the
+    #         local Ollama fallback rather than the HF Inference API ────────
+    if result.get("_backend") == "ollama":
+        response["notice"] = (
+            "Running on local inference — the free Hugging Face tier limit "
+            "was reached, so responses may be slower than usual."
+        )
+
+    return response
 
 # ─────────────────────────────────────────────────────────────
 # MCP
